@@ -36,10 +36,18 @@ export default function TodoPage() {
     setLoading(false);
   }, []);
 
-  // 바뀐 목록을 화면과 localStorage에 함께 반영
+  // 바뀐 목록을 화면과 localStorage에 함께 반영하고, 이전 안내 문구는 지운다
   function update(next: Todo[]) {
     setTodos(next);
     saveTodos(next);
+    setError(null);
+  }
+
+  // 목록에 있는 id인지 확인. 없으면 안내 문구를 띄운다
+  function ensureExists(id: string): boolean {
+    if (todos.some((todo) => todo.id === id)) return true;
+    setError(ERROR_MESSAGES.TODO_NOT_FOUND);
+    return false;
   }
 
   async function handleAdd(title: string) {
@@ -54,26 +62,17 @@ export default function TodoPage() {
       createdAt: new Date().toISOString(),
     };
     update([todo, ...todos]); // 최신순이므로 맨 앞에 넣는다
-    setError(null);
   }
 
   function handleToggle(id: string, done: boolean) {
-    if (!todos.some((todo) => todo.id === id)) {
-      setError(ERROR_MESSAGES.TODO_NOT_FOUND);
-      return;
-    }
+    if (!ensureExists(id)) return;
     // 그 항목만 바꾸고 순서는 그대로 둔다
     update(todos.map((todo) => (todo.id === id ? { ...todo, done } : todo)));
-    setError(null);
   }
 
   function handleDelete(id: string) {
-    if (!todos.some((todo) => todo.id === id)) {
-      setError(ERROR_MESSAGES.TODO_NOT_FOUND);
-      return;
-    }
+    if (!ensureExists(id)) return;
     update(todos.filter((todo) => todo.id !== id));
-    setError(null);
   }
 
   return (
