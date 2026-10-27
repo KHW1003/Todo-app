@@ -24,28 +24,28 @@
 
 - v0.1에는 서버가 없으므로 id와 created_at은 화면(브라우저)이 만든다.
 
-### MySQL 타입 (v0.3부터)
+### PostgreSQL 타입 (v0.3부터)
 
-| 필드 | MySQL 타입 | 제약조건 | 왜 이 타입인가 |
+| 필드 | PostgreSQL 타입 | 제약조건 | 왜 이 타입인가 |
 |------|-----------|----------|---------------|
-| id | CHAR(36) | PRIMARY KEY | UUID는 항상 36글자라 길이가 고정된 CHAR가 맞다 |
+| id | UUID | PRIMARY KEY | PostgreSQL에는 UUID 전용 타입이 있다. 글자(36자)보다 작게 저장되고, UUID 모양이 아닌 값은 DB가 받지 않는다 |
 | title | VARCHAR(400) | NOT NULL | 글자 칸. 보이는 글자 100자 검사는 서버가 한다. 400인 이유는 아래 참고 |
-| done | BOOLEAN | NOT NULL, DEFAULT FALSE | MySQL 안에서는 0/1 숫자(TINYINT(1))로 저장되지만, Drizzle이 true/false로 바꿔 준다 |
-| created_at | DATETIME(3) | NOT NULL | 날짜와 시각. `(3)`은 1/1000초까지 저장한다는 뜻. UTC로 저장한다 |
+| done | BOOLEAN | NOT NULL, DEFAULT FALSE | 진짜 true/false 타입이다 |
+| created_at | TIMESTAMPTZ(3) | NOT NULL | 시간대가 있는 날짜와 시각. `(3)`은 1/1000초까지 저장한다는 뜻 |
 
-- 테이블 문자셋: `utf8mb4` (한글과 이모지가 깨지지 않게)
-- title이 VARCHAR(100)이 아니라 VARCHAR(400)인 이유: 제목 길이는 "보이는 글자" 기준으로 센다 (PRD Q-02). 그런데 👨‍👩‍👧 같은 이모지는 보이는 건 1자여도 MySQL은 5자로 센다. VARCHAR(100)이면 보이는 글자 100자 제목이 DB에서 거절될 수 있어서 여유를 둔다. 서버는 내부 길이 400을 넘는 제목도 거절한다 (API_SPEC).
-- `TIMESTAMP` 대신 `DATETIME`을 쓰는 이유: TIMESTAMP는 2038년까지만 저장되고, 서버 시간대 설정에 따라 값이 바뀌어 보일 수 있다.
+- DB 인코딩: `UTF8` (한글과 이모지가 깨지지 않게. PostgreSQL 기본값)
+- title이 VARCHAR(100)이 아니라 VARCHAR(400)인 이유: 제목 길이는 "보이는 글자" 기준으로 센다 (PRD Q-02). 그런데 👨‍👩‍👧 같은 이모지는 보이는 건 1자여도 PostgreSQL은 5자로 센다. VARCHAR(100)이면 보이는 글자 100자 제목이 DB에서 거절될 수 있어서 여유를 둔다. 서버는 내부 길이 400을 넘는 제목도 거절한다 (API_SPEC).
+- `TIMESTAMP` 대신 `TIMESTAMPTZ`를 쓰는 이유: TIMESTAMPTZ는 받은 시각을 UTC로 바꿔 보관하므로, 서버나 DB의 시간대 설정이 달라도 같은 순간을 가리킨다.
 
 ```sql
--- 참고용 SQL (실제로는 Drizzle 스키마로 만든다)
+-- 참고용 SQL (실제로는 SQLAlchemy 모델로 만든다, backend/app/models.py)
 CREATE TABLE todos (
-  id         CHAR(36)     NOT NULL PRIMARY KEY,
-  title      VARCHAR(400) NOT NULL,
-  done       BOOLEAN      NOT NULL DEFAULT FALSE,
-  created_at DATETIME(3)  NOT NULL,
-  INDEX idx_todos_created_at (created_at)
-) DEFAULT CHARSET = utf8mb4;
+  id         UUID           PRIMARY KEY,
+  title      VARCHAR(400)   NOT NULL,
+  done       BOOLEAN        NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ(3) NOT NULL
+);
+CREATE INDEX idx_todos_created_at ON todos (created_at);
 ```
 
 ### 인덱스
@@ -56,26 +56,27 @@ CREATE TABLE todos (
 | idx_todos_created_at | created_at | F-02 목록 최신순 (`ORDER BY created_at DESC`) |
 
 - **인덱스**: 책 뒤의 "찾아보기"처럼, DB가 처음부터 끝까지 다 뒤지지 않고 바로 찾게 해 주는 목록.
-- 기본키(id)는 MySQL이 알아서 인덱스를 만든다.
+- 기본키(id)는 PostgreSQL이 알아서 인덱스를 만든다.
 - 혼자 쓰는 앱이라 할 일이 수백 개 정도면 인덱스가 없어도 느끼지 못한다. 그래도 목록 조회가 가장 자주 쓰는 기능이고, 비용이 거의 없어서 넣어 둔다.
 
 ### 시간대 (UTC로 저장)
 
-DATETIME은 시간대 정보를 따로 담지 않는다. "14:30"만 저장하고, 그게 한국 시간인지 UTC인지는 모른다.
+TIMESTAMPTZ는 "어느 순간인지"를 저장한다. 받은 시각을 UTC로 바꿔 보관하고, 꺼낼 때는 연결의 시간대 설정에 맞춰 보여준다.
 그래서 **어디서든 UTC로 넣고 UTC로 꺼낸다**는 약속을 정해 둔다.
 
 | 단계 | 하는 일 |
 |------|---------|
-| 만들 때 (서버) | `new Date()`로 지금 시각을 만든다 (JS의 Date는 내부적으로 UTC) |
-| DB에 넣고 꺼낼 때 | mysql2 연결 설정에 `timezone: "Z"`를 넣어 UTC 그대로 주고받게 한다 |
-| API로 보낼 때 | `toISOString()`으로 `"2026-10-23T05:30:00.000Z"`처럼 끝에 `Z`가 붙은 문자열로 보낸다 |
+| 만들 때 (서버) | `datetime.now(timezone.utc)`로 시간대가 붙은 지금 시각을 만든다. 1/1000초 아래는 버린다 |
+| DB에 넣고 꺼낼 때 | 연결 설정에서 세션 시간대를 UTC로 맞춘다 (`options="-c timezone=UTC"`) |
+| API로 보낼 때 | `"2026-10-23T05:30:00.000Z"`처럼 밀리초 3자리, 끝에 `Z`가 붙은 문자열로 보낸다 |
 | 화면에서 | 보여주지 않는다. 최신순 정렬에만 쓴다 (PRD F-02). 나중에 보여주게 되면 브라우저가 한국 시간으로 바꾼다 |
 
-- `timezone: "Z"`를 빼먹으면, 서버 컴퓨터의 시간대에 따라 저장된 시각이 9시간씩 밀려 보일 수 있다.
-- DB 기본값(`DEFAULT NOW()`)을 쓰지 않고 서버가 시각을 만드는 이유: MySQL 서버의 시간대 설정에 따라 값이 달라지지 않게 하기 위해서다.
+- 파이썬 `isoformat()`은 `"2026-10-23T05:30:00.123456+00:00"`처럼 나온다. API 모양에 맞게 `isoformat(timespec="milliseconds")`로 밀리초까지만 쓰고, 끝의 `+00:00`을 `Z`로 바꾼다.
+- `datetime.now()`처럼 시간대 없이 만들면 서버 컴퓨터 시간대로 해석되어 9시간씩 밀려 보일 수 있다. 꼭 `timezone.utc`를 붙인다.
+- DB 기본값(`DEFAULT NOW()`)을 쓰지 않고 서버가 시각을 만드는 이유: v0.2(메모리)와 v0.3(DB)이 같은 방법으로 시각을 만들게 하기 위해서다.
 
 ### 필드별 참고
-- **id**: 숫자 자동 증가 대신 UUID를 쓴다. v0.1·v0.2처럼 DB가 없는 단계에서도 같은 방식(`crypto.randomUUID()`)으로 만들 수 있기 때문이다.
+- **id**: 숫자 자동 증가 대신 UUID를 쓴다. v0.1·v0.2처럼 DB가 없는 단계에서도 만들 수 있기 때문이다. v0.1 화면은 `crypto.randomUUID()`, v0.2부터 서버는 `uuid.uuid4()`로 만든다. 둘 다 같은 모양(버전 4 UUID)이다.
 - **title**: 1~100자 검사는 화면과 서버 양쪽에서 하고, 서버 검사가 최종 기준이다 (TRD 8장).
 - **done**: 새 할 일은 항상 미완료(false)로 시작한다.
 - **created_at**: API로 주고받을 때는 `createdAt`이라는 이름의 ISO 8601 문자열로 보낸다. 예) `"2026-10-23T09:30:00.000Z"`
@@ -86,7 +87,7 @@ DATETIME은 시간대 정보를 따로 담지 않는다. "14:30"만 저장하고
 
 ### 용어 풀이
 - **기본키**: 한 줄을 콕 집어 가리키는 값. 겹치지 않는다. `/api/todos/:id`의 `:id` 자리에 들어간다.
-- **UUID**: `"3f2b8c1e-9a4d-4e7b-b5c2-1d0e6f8a9b3c"`처럼 생긴, 겹칠 일이 사실상 없는 긴 문자열. `crypto.randomUUID()` 한 줄로 만든다.
+- **UUID**: `"3f2b8c1e-9a4d-4e7b-b5c2-1d0e6f8a9b3c"`처럼 생긴, 겹칠 일이 사실상 없는 긴 문자열. 화면(JS)은 `crypto.randomUUID()`, 서버(파이썬)는 `uuid.uuid4()` 한 줄로 만든다.
 - **기본값**: 값을 안 넣으면 대신 채우는 값.
 - **ISO 8601**: 날짜를 `연-월-일T시:분:초Z` 모양으로 쓰는 세계 표준. 끝의 `Z`는 세계 표준시(UTC)라는 뜻.
 
@@ -106,9 +107,10 @@ DB 제약은 "마지막 안전장치"다. 진짜 검사는 서버의 Zod가 한�
 | 위치 | 규칙 | 예 |
 |------|------|-----|
 | DB 컬럼 | snake_case (단어 사이 `_`) | `created_at` |
+| 파이썬 코드 | snake_case | `created_at` |
 | TypeScript / API JSON | camelCase (두 번째 단어부터 대문자) | `createdAt` |
 
-Drizzle 스키마에서 둘을 이어 준다.
+서버는 파이썬 안에서 `created_at`을 쓰고, 응답을 만들 때 Pydantic 별명(alias)으로 `createdAt`으로 바꿔 보낸다.
 
 ## 4. TypeScript 타입 예시 (src/types/todo.ts)
 
@@ -135,6 +137,22 @@ export type UpdateTodoInput = {
 - `createdAt`이 `Date`가 아니라 `string`인 이유: API는 JSON으로 주고받는데, JSON에는 날짜 타입이 없어서 글자로 바뀐다.
 - `CreateTodoInput`에 `id`, `done`, `createdAt`이 없는 이유: 셋 다 서버가 채운다. 사용자는 제목만 보낸다.
 
+### 서버 쪽 같은 모양 (backend/app/schemas.py, Pydantic)
+
+```python
+# 할 일 추가 요청 - F-01. 정해진 필드 말고 다른 필드가 오면 거절
+class CreateTodoInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str
+
+# 완료 전환 요청 - F-03. "true"나 1은 받지 않는다
+class UpdateTodoInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    done: StrictBool
+```
+
+- 응답 `Todo`는 위 TypeScript `Todo`와 같은 모양으로 만든다 (`createdAt` 이름, `Z`로 끝나는 날짜 글자).
+
 ## 5. 예시 데이터
 
 | id | title | done | created_at |
@@ -149,8 +167,8 @@ export type UpdateTodoInput = {
 | 버전 | 저장 위치 | id·created_at 만드는 곳 | 데이터 모양 |
 |------|-----------|------------------------|------------|
 | v0.1 | localStorage | 화면 | `Todo[]` 배열을 JSON 글자로 저장 |
-| v0.2 | 서버 메모리 | 서버 | `Todo[]` 배열 |
-| v0.3 | MySQL | 서버 | 위 todos 테이블 |
+| v0.2 | FastAPI 서버 메모리 | 서버 | 파이썬 리스트 |
+| v0.3 | PostgreSQL | 서버 | 위 todos 테이블 |
 
 모든 버전에서 같은 `Todo` 타입을 쓴다. 그래서 버전이 올라가도 화면 코드는 크게 바뀌지 않는다.
 

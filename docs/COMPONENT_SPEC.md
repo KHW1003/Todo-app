@@ -101,7 +101,7 @@ type TodoFormProps = {
 | `onAdd` 성공 | 입력창을 비우고 안내 문구를 지운다 |
 | `onAdd` 실패 | 던진 오류의 `message`를 입력창 아래에 표시 |
 
-- 화면 검사는 `src/lib/validation.ts`의 Zod 규칙을 그대로 쓴다 (TRD 8장). 안내용일 뿐이고 진짜 검사는 서버가 한다.
+- 화면 검사는 `src/lib/validation.ts`의 Zod 규칙을 쓴다 (TRD 8장). 서버(FastAPI)와 같은 규칙이지만 안내용일 뿐이고, 진짜 검사는 서버가 한다.
 - `onAdd`에는 **입력한 그대로** 넘긴다 ("  장보기  "). 앞뒤 공백 제거는 Zod 규칙이 한다 (TRD 9장 4번).
 - 안내 문구는 입력창 바로 아래, 빨간 글자, `role="alert"` (화면 낭독기가 읽어 주게).
 
@@ -179,7 +179,7 @@ PC와 휴대폰 모두 한 줄짜리 세로 목록이라 같은 화면을 쓴다
 | 버전 | TodoPage가 쓰는 것 | 실패 문구 출처 |
 |------|-------------------|---------------|
 | v0.1 | localStorage (키: `"todos"`, 값: `Todo[]`의 JSON) | 화면이 Zod로 검사하고 API_SPEC 8장과 같은 문구를 씀 (`src/lib/errors.ts`) |
-| v0.2 ~ | `src/lib/todoApi.ts`의 함수 (fetch로 API 호출) | 서버 응답의 `error.message` |
+| v0.2 ~ | `src/lib/todoApi.ts`의 함수 (fetch로 `/api/todos` 호출 → Next.js가 FastAPI로 넘김) | FastAPI 응답의 `error.message` |
 
 - v0.1: localStorage는 화면이 처음 그려진 뒤(`useEffect` 안에서) 읽는다. Next.js는 서버에서 먼저 화면을 그리는데, 서버에는 localStorage가 없기 때문이다. 그래서 v0.1에서도 아주 잠깐 "불러오는 중..."이 보일 수 있다.
 - v0.1: id는 `crypto.randomUUID()`, createdAt은 `new Date().toISOString()`으로 화면이 만든다 (DATA_MODEL 2장).

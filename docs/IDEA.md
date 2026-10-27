@@ -18,6 +18,6 @@
 
 ## 버전 로드맵
 - v0.1 화면만 (브라우저 localStorage)
-- v0.2 API 연결 (서버 메모리)
-- v0.3 DB 저장 (MySQL)
+- v0.2 API 연결 (FastAPI 서버 메모리)
+- v0.3 DB 저장 (PostgreSQL)
 - v1.0 배포

@@ -1,4 +1,4 @@
-// 에러 코드와 한국어 문구 (API_SPEC.md 8장). 서버와 화면이 같이 쓴다
+// 에러 코드와 한국어 문구 (API_SPEC.md 8장). 서버 backend/app/errors.py와 똑같이 맞춘다
 export const ERROR_MESSAGES = {
   TITLE_REQUIRED: "제목을 입력해 주세요",
   TITLE_TOO_LONG: "제목은 100자 이하로 입력해 주세요",

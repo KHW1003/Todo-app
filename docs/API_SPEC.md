@@ -10,12 +10,13 @@
 
 | 메서드 | 주소 | 하는 일 | 성공 코드 | 기능 | 파일 |
 |--------|------|---------|----------|------|------|
-| GET | /api/todos | 목록 조회 (최신순) | 200 | F-02 | app/api/todos/route.ts |
-| POST | /api/todos | 추가 | 201 | F-01 | app/api/todos/route.ts |
-| PATCH | /api/todos/:id | 완료 전환 | 200 | F-03 | app/api/todos/[id]/route.ts |
-| DELETE | /api/todos/:id | 삭제 | 204 | F-04 | app/api/todos/[id]/route.ts |
+| GET | /api/todos | 목록 조회 (최신순) | 200 | F-02 | backend/app/main.py |
+| POST | /api/todos | 추가 | 201 | F-01 | backend/app/main.py |
+| PATCH | /api/todos/:id | 완료 전환 | 200 | F-03 | backend/app/main.py |
+| DELETE | /api/todos/:id | 삭제 | 204 | F-04 | backend/app/main.py |
 
-- F-05(데이터 유지)는 별도 API가 아니라 저장 위치(서버 메모리 → MySQL)로 해결한다.
+- 서버는 FastAPI(Python)다. 화면은 Next.js 주소(3000)로 요청하고, Next.js가 FastAPI(8000)로 넘긴다 (TRD 4장).
+- F-05(데이터 유지)는 별도 API가 아니라 저장 위치(서버 메모리 → PostgreSQL)로 해결한다.
 - 제목 수정 API는 없다. PATCH는 완료 전환만 한다 (PRD에 제목 수정 기능 없음).
 
 ### 한눈에 보는 규칙
@@ -37,7 +38,7 @@
 
 | 항목 | 내용 |
 |------|------|
-| 주소 | `http://localhost:3000/api` (개발 서버 기준) |
+| 주소 | 화면에서는 `http://localhost:3000/api` (개발 서버 기준). 실제로 받는 곳은 FastAPI `http://localhost:8000/api` |
 | 사용 버전 | v0.2부터 (v0.1은 API 없이 localStorage) |
 | 주고받는 형식 | JSON. 요청에 본문이 있으면 헤더 `Content-Type: application/json` |
 | 로그인 | 없음 (PRD 범위 밖) |
@@ -75,6 +76,7 @@
 
 - `code`와 `message`를 나누는 이유: 문구는 나중에 다듬을 수 있지만, 코드가 `message` 글자를 비교하고 있으면 문구를 바꿀 때마다 코드가 깨진다. 그래서 코드는 `code`만 본다.
 - 전체 코드 목록은 8장.
+- FastAPI의 기본 실패 응답(422, `{ "detail": … }`)은 쓰지 않는다. 모든 실패를 위 모양과 이 문서의 상태 코드로 바꿔 보낸다 (TRD 7장).
 
 ### 상태 코드
 
@@ -138,7 +140,7 @@
 
 | 필드 | 값 |
 |------|----|
-| id | `crypto.randomUUID()` |
+| id | `uuid.uuid4()` |
 | done | `false` |
 | createdAt | 지금 시각 (UTC) |
 
@@ -252,7 +254,7 @@ await fetch(`/api/todos/${id}`, { method: "DELETE" });
 
 ## 8. 에러 코드 모음
 
-서버와 화면이 같은 값을 쓰도록 한 곳(`src/lib/errors.ts` 등)에 모아 둔다.
+서버와 화면은 언어가 달라서 같은 표를 두 곳에 둔다: 서버 `backend/app/errors.py`, 화면 `src/lib/errors.ts`. 둘의 code와 message는 이 표와 똑같아야 한다.
 
 | code | 상태 | message | 쓰는 곳 |
 |------|------|---------|---------|
@@ -291,5 +293,5 @@ await fetch(`/api/todos/${id}`, { method: "DELETE" });
 | 버전 | API |
 |------|-----|
 | v0.1 | 없음. 화면이 localStorage를 직접 쓴다. 단, 데이터 모양(`Todo`)과 제목 규칙은 이 문서와 같게 한다 |
-| v0.2 | 이 문서대로. 저장은 서버 메모리 |
-| v0.3 | 이 문서와 **똑같다**. 저장만 MySQL로 바뀐다 |
+| v0.2 | 이 문서대로. FastAPI 서버, 저장은 서버 메모리 |
+| v0.3 | 이 문서와 **똑같다**. 저장만 PostgreSQL로 바뀐다 |

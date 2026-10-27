@@ -8,10 +8,12 @@
 
 | ID 앞글자 | 대상 | 도구 | 시작 버전 |
 |----------|------|------|----------|
-| VAL | 제목 검증 규칙 (`src/lib/validation.ts`) | Jest | v0.1 |
+| VAL | 제목 검증 규칙 (화면 `src/lib/validation.ts`) | Jest | v0.1 |
+| VAL | 제목 검증 규칙 (서버 `backend/app/validation.py`) | pytest | v0.2 |
 | UI | 화면 컴포넌트 | Jest + React Testing Library | v0.1 |
-| API | API 라우트 | Jest | v0.2 |
+| API | FastAPI 서버 (`backend/app/main.py`) | pytest + FastAPI TestClient | v0.2 |
 
+- VAL 케이스는 화면과 서버에서 **똑같이** 돌린다. 규칙이 두 언어로 따로 적혀 있어서 어긋나지 않는지 확인하기 위해서다 (TRD 8장).
 - 테스트는 실제 DB를 쓰지 않는다 (TRD 10장). DB 대신 무엇을 쓸지는 TRD T-04에서 정한다.
 - 기대 결과의 문구는 API_SPEC 8장, COMPONENT_SPEC 2장과 똑같아야 한다.
 - 아래 표의 `UUID-A`는 미리 만들어 둔 할 일의 id, `UUID-X`는 `00000000-0000-0000-0000-000000000000`(없는 id)이다.
@@ -30,7 +32,7 @@
 | VAL-08 | "가" × 101 (101자) | 실패, TITLE_TOO_LONG | F-01 |
 | VAL-09 | "👍" × 100 (보이는 글자 100자) | 통과 | F-01 Q-02 |
 | VAL-10 | "👍" × 101 | 실패, TITLE_TOO_LONG | F-01 Q-02 |
-| VAL-11 | 문자열이 아님 (숫자 1, null) | 실패, TITLE_REQUIRED | F-01 |
+| VAL-11 | 문자열이 아님 (숫자 1, null. 서버는 파이썬 `1`, `None`) | 실패, TITLE_REQUIRED | F-01 |
 
 ## 2. 컴포넌트 (UI)
 

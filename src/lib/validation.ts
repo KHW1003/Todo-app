@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// 제목 규칙 (TRD 8장). 서버와 화면이 이 파일 하나를 같이 쓴다
+// 화면용 제목 규칙 (TRD 8장). 안내용이고, 같은 규칙이 서버 backend/app/validation.py에도 있다
 const MAX_VISIBLE_LENGTH = 100; // 보이는 글자 수
 const MAX_STORED_LENGTH = 400; // DB 칸 크기 (VARCHAR(400))
 
